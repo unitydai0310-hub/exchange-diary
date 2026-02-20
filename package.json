@@ -1,0 +1,18 @@
+{
+  "name": "exchange-diary",
+  "version": "2.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "legacy:dev": "node server.js",
+    "legacy:start": "node server.js"
+  },
+  "dependencies": {
+    "next": "14.2.5",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-pageflip": "2.0.3"
+  }
+}

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>交換日記ルーム</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>交換日記</h1>
+      <p id="room-meta">ルーム未参加</p>
+    </header>
+
+    <main>
+      <div class="notebook-stack">
+      <div class="notebook-sheet">
+        <p class="page-stamp" id="page-stamp">PAGE 1 · ENTRIES 0</p>
+
+        <section class="panel auth" id="auth-panel">
+          <h2>ルームに参加する</h2>
+          <div class="auth-grid">
+            <form id="create-form" class="card">
+              <h3>新規ルーム作成</h3>
+              <label>ニックネーム<input name="nickname" required maxlength="30" /></label>
+              <label>ルーム名<input name="roomName" maxlength="60" placeholder="例: 土曜メンバー交換日記" /></label>
+              <button type="submit">ルーム作成</button>
+            </form>
+
+            <form id="join-form" class="card">
+              <h3>既存ルーム参加</h3>
+              <label>ニックネーム<input name="nickname" required maxlength="30" /></label>
+              <label>ルームコード<input id="join-room-code" name="roomCode" required maxlength="6" /></label>
+              <button type="submit">参加する</button>
+            </form>
+          </div>
+        </section>
+
+        <section class="panel hidden" id="app-panel">
+          <div class="room-actions">
+            <div>
+              <h2 id="room-title">-</h2>
+              <p>招待リンク: <span id="invite-link"></span></p>
+            </div>
+            <button id="copy-invite">招待リンクをコピー</button>
+          </div>
+
+          <div class="workspace">
+            <div class="compose-col">
+              <form id="entry-form" class="entry-form">
+                <h3>日記を書く（1日1件）</h3>
+                <label>日付<input type="date" name="date" required /></label>
+                <label>本文<textarea name="body" rows="4" placeholder="今日の出来事"></textarea></label>
+                <label>写真・動画（最大3件）<input type="file" name="media" accept="image/*,video/*" multiple /></label>
+                <button type="submit">投稿する</button>
+                <p class="hint">画像/動画だけでも投稿できます。</p>
+                <section id="lottery-panel" class="lottery-panel">
+                  <p id="lottery-status">明日の担当: 未抽選</p>
+                  <button id="draw-lottery" type="button">明日の担当を抽選</button>
+                </section>
+              </form>
+
+              <section class="calendar-wrap">
+                <h3>カレンダー</h3>
+                <div class="calendar-head">
+                  <button id="prev-month" type="button">◀</button>
+                  <strong id="month-label"></strong>
+                  <button id="next-month" type="button">▶</button>
+                </div>
+                <div id="calendar" class="calendar"></div>
+              </section>
+            </div>
+
+            <section class="timeline-wrap">
+              <div class="book-head">
+                <h3>日記ノート</h3>
+                <div class="book-nav">
+                  <button id="prev-page" type="button">◀</button>
+                  <strong id="page-label">1 / 1</strong>
+                  <button id="next-page" type="button">▶</button>
+                </div>
+              </div>
+              <article id="daily-page" class="daily-page"></article>
+            </section>
+          </div>
+        </section>
+      </div>
+      </div>
+    </main>
+
+    <p id="notice" class="notice"></p>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
