@@ -20,32 +20,39 @@ function toPublicEntry(entry) {
 }
 
 export async function GET(request, { params }) {
-  const roomCode = normalizeRoomCode(params.roomCode);
-  const session = authFromRequest(request, roomCode);
-  if (!session) {
-    return NextResponse.json({ error: '認証情報が無効です' }, { status: 401 });
+  try {
+    const roomCode = normalizeRoomCode(params.roomCode);
+    const session = authFromRequest(request, roomCode);
+    if (!session) {
+      return NextResponse.json({ error: '認証情報が無効です' }, { status: 401 });
+    }
+
+    const rawRoom = await getRoom(roomCode);
+    if (!rawRoom) {
+      return NextResponse.json({ error: 'ルームが見つかりません' }, { status: 404 });
+    }
+
+    const room = normalizeRoom(rawRoom, roomCode);
+    const entries = room.entries
+      .slice()
+      .sort((a, b) => (a.date < b.date ? 1 : -1))
+      .map(toPublicEntry);
+
+    return NextResponse.json({
+      room: {
+        code: room.code,
+        name: room.name,
+        members: room.members,
+        createdAt: room.createdAt,
+        lotteryAssignments: room.lotteryAssignments || {}
+      },
+      me: session.nickname,
+      entries
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error?.message || 'サーバーエラーが発生しました' },
+      { status: 500 }
+    );
   }
-
-  const rawRoom = await getRoom(roomCode);
-  if (!rawRoom) {
-    return NextResponse.json({ error: 'ルームが見つかりません' }, { status: 404 });
-  }
-
-  const room = normalizeRoom(rawRoom, roomCode);
-  const entries = room.entries
-    .slice()
-    .sort((a, b) => (a.date < b.date ? 1 : -1))
-    .map(toPublicEntry);
-
-  return NextResponse.json({
-    room: {
-      code: room.code,
-      name: room.name,
-      members: room.members,
-      createdAt: room.createdAt,
-      lotteryAssignments: room.lotteryAssignments || {}
-    },
-    me: session.nickname,
-    entries
-  });
 }

@@ -8,6 +8,14 @@ function hasKv() {
   return Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 }
 
+function assertStorageReady() {
+  if (process.env.VERCEL && !hasKv()) {
+    throw new Error(
+      'Vercel KV が未設定です。Vercel StorageでKVを接続して再デプロイしてください。'
+    );
+  }
+}
+
 async function ensureFileDb() {
   await fs.mkdir(path.dirname(DB_PATH), { recursive: true });
   try {
@@ -32,6 +40,7 @@ async function writeFileDb(data) {
 }
 
 export async function getRoom(roomCode) {
+  assertStorageReady();
   if (hasKv()) {
     const room = await kv.get(`room:${roomCode}`);
     return room || null;
@@ -42,6 +51,7 @@ export async function getRoom(roomCode) {
 }
 
 export async function saveRoom(roomCode, room) {
+  assertStorageReady();
   if (hasKv()) {
     await kv.set(`room:${roomCode}`, room);
     return;
@@ -53,6 +63,7 @@ export async function saveRoom(roomCode, room) {
 }
 
 export async function roomExists(roomCode) {
+  assertStorageReady();
   const room = await getRoom(roomCode);
   return Boolean(room);
 }
