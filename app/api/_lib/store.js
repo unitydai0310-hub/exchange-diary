@@ -1,11 +1,33 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { kv } from '@vercel/kv';
 
 const DB_PATH = path.join(process.cwd(), 'data', 'rooms.vercel.json');
 
+function getKvEnv() {
+  const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || '';
+  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || '';
+  return { url, token };
+}
+
 function hasKv() {
-  return Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+  const { url, token } = getKvEnv();
+  return Boolean(url && token);
+}
+
+async function kvGet(key) {
+  const { url, token } = getKvEnv();
+  process.env.KV_REST_API_URL = url;
+  process.env.KV_REST_API_TOKEN = token;
+  const { kv } = await import('@vercel/kv');
+  return kv.get(key);
+}
+
+async function kvSet(key, value) {
+  const { url, token } = getKvEnv();
+  process.env.KV_REST_API_URL = url;
+  process.env.KV_REST_API_TOKEN = token;
+  const { kv } = await import('@vercel/kv');
+  await kv.set(key, value);
 }
 
 function assertStorageReady() {
@@ -42,7 +64,7 @@ async function writeFileDb(data) {
 export async function getRoom(roomCode) {
   assertStorageReady();
   if (hasKv()) {
-    const room = await kv.get(`room:${roomCode}`);
+    const room = await kvGet(`room:${roomCode}`);
     return room || null;
   }
 
@@ -53,7 +75,7 @@ export async function getRoom(roomCode) {
 export async function saveRoom(roomCode, room) {
   assertStorageReady();
   if (hasKv()) {
-    await kv.set(`room:${roomCode}`, room);
+    await kvSet(`room:${roomCode}`, room);
     return;
   }
 
