@@ -9,7 +9,7 @@ const state = {
   entries: [],
   dayPageIndex: 0,
   monthCursor: new Date(),
-  stream: null
+  pollTimer: null
 };
 
 const REACTION_EMOJIS = ['👍', '❤️', '😂', '👏', '✨', '🙏'];
@@ -370,85 +370,37 @@ function renderLottery() {
   }
 }
 
-function connectStream() {
-  if (state.stream) {
-    state.stream.close();
+function startPolling() {
+  if (state.pollTimer) {
+    clearInterval(state.pollTimer);
   }
-
-  const streamUrl = `/api/rooms/${state.roomCode}/stream?token=${encodeURIComponent(state.token)}`;
-  state.stream = new EventSource(streamUrl, { withCredentials: false });
-
-  state.stream.onmessage = () => {};
-
-  state.stream.addEventListener('entry-created', (event) => {
-    try {
-      const entry = JSON.parse(event.data);
-      const exists = state.entries.some((item) => item.id === entry.id);
-      if (!exists) {
-        state.entries.unshift(entry);
-        render();
-      }
-    } catch {
-      // ignore
-    }
-  });
-
-  state.stream.addEventListener('reaction-updated', (event) => {
-    try {
-      const payload = JSON.parse(event.data);
-      if (!payload?.entryId) return;
-      updateEntryReactions(payload.entryId, payload.reactions);
-      renderBookPage();
-    } catch {
-      // ignore
-    }
-  });
-
-  state.stream.addEventListener('lottery-updated', (event) => {
-    try {
-      const payload = JSON.parse(event.data);
-      const winners = Array.isArray(payload?.winners)
-        ? payload.winners
-        : payload?.winner
-          ? [payload.winner]
-          : [];
-      if (!payload?.date || winners.length === 0) return;
-      state.lotteryAssignments[payload.date] = {
-        winners,
-        drawnBy: payload.drawnBy || '',
-        drawnAt: payload.drawnAt || ''
-      };
-      renderLottery();
-      notice(`${payload.date} の担当は ${winners.join(' / ')} さんです`);
-    } catch {
-      // ignore
-    }
-  });
-
-  state.stream.onerror = () => {
-    if (state.stream) {
-      state.stream.close();
-      state.stream = null;
-    }
-
-    setTimeout(() => {
-      if (state.token && state.roomCode) {
-        connectStream();
-      }
-    }, 2000);
-  };
+  state.pollTimer = setInterval(() => {
+    if (!state.token || !state.roomCode) return;
+    refreshRoom().catch(() => {
+      // ignore polling errors
+    });
+  }, 5000);
 }
 
-async function toBase64(file) {
-  const arrayBuffer = await file.arrayBuffer();
-  let binary = '';
-  const bytes = new Uint8Array(arrayBuffer);
-  const chunkSize = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const slice = bytes.subarray(i, i + chunkSize);
-    binary += String.fromCharCode(...slice);
+async function uploadMedia(file) {
+  const res = await fetch(`/api/media/upload?filename=${encodeURIComponent(file.name)}`, {
+    method: 'POST',
+    headers: {
+      'content-type': file.type || 'application/octet-stream'
+    },
+    body: file
+  });
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    throw new Error(data.error || 'メディアのアップロードに失敗しました');
   }
-  return btoa(binary);
+
+  return {
+    name: data.name || file.name,
+    type: data.type || file.type || 'application/octet-stream',
+    url: data.url
+  };
 }
 
 function escapeHtml(value) {
@@ -481,7 +433,7 @@ async function handleCreate(event) {
   saveAuth();
   openAppPanel();
   await refreshRoom();
-  connectStream();
+  startPolling();
   notice('ルームを作成しました');
 }
 
@@ -506,7 +458,7 @@ async function handleJoin(event) {
   saveAuth();
   openAppPanel();
   await refreshRoom();
-  connectStream();
+  startPolling();
   notice('ルームに参加しました');
 }
 
@@ -523,11 +475,10 @@ async function handlePostEntry(event) {
 
   const media = [];
   for (const file of files) {
-    media.push({
-      name: file.name,
-      type: file.type || 'application/octet-stream',
-      base64: await toBase64(file)
-    });
+    if (file.size > 4 * 1024 * 1024) {
+      throw new Error(`${file.name} は4MB以下にしてください`);
+    }
+    media.push(await uploadMedia(file));
   }
 
   const dateValue = String(formData.get('date') || '');
@@ -699,7 +650,7 @@ async function bootstrap() {
   try {
     openAppPanel();
     await refreshRoom();
-    connectStream();
+    startPolling();
   } catch {
     localStorage.removeItem('exchange-diary-auth');
     state.token = '';
