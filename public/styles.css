@@ -405,6 +405,57 @@ button:hover {
   padding: 0.38rem 0.72rem;
 }
 
+.members-wrap {
+  border: 2px solid #d8c5b0;
+  border-radius: 14px;
+  padding: 0.9rem;
+  background: #fffefb;
+}
+
+.members-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+
+.members-head strong {
+  font-family: var(--font-en);
+  font-size: 0.9rem;
+  color: #7d6255;
+}
+
+.member-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.member-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid #d7c4b1;
+  border-radius: 10px;
+  padding: 0.45rem 0.6rem;
+  background: #fff;
+  font-size: 0.9rem;
+}
+
+.member-item .badge {
+  font-family: var(--font-en);
+  font-size: 0.72rem;
+  border: 1px solid #cda78e;
+  border-radius: 999px;
+  padding: 0.08rem 0.45rem;
+  background: #f7e4da;
+  color: #7b5f52;
+}
+
 .calendar-wrap,
 .timeline-wrap {
   border: 2px solid #d8c5b0;

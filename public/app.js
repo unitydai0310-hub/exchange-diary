@@ -44,6 +44,8 @@ const el = {
   lotteryPanel: document.querySelector('#lottery-panel'),
   lotteryStatus: document.querySelector('#lottery-status'),
   drawLottery: document.querySelector('#draw-lottery'),
+  memberCount: document.querySelector('#member-count'),
+  memberList: document.querySelector('#member-list'),
   notice: document.querySelector('#notice'),
   prevMonth: document.querySelector('#prev-month'),
   nextMonth: document.querySelector('#next-month')
@@ -435,7 +437,29 @@ function render() {
   renderBookPage();
   renderCalendar();
   renderLottery();
+  renderMembers();
   renderRoomSwitcher();
+}
+
+function renderMembers() {
+  if (!el.memberList || !el.memberCount) return;
+
+  const members = Array.isArray(state.members) ? state.members : [];
+  el.memberCount.textContent = `${members.length}名`;
+
+  if (members.length === 0) {
+    el.memberList.innerHTML = '<li class="member-item">メンバー情報がありません</li>';
+    return;
+  }
+
+  el.memberList.innerHTML = members
+    .map((name) => {
+      const hostBadge = state.hostNickname && name === state.hostNickname
+        ? '<span class="badge">HOST</span>'
+        : '';
+      return `<li class="member-item"><span>${escapeHtml(name)}</span>${hostBadge}</li>`;
+    })
+    .join('');
 }
 
 function updateEntryReactions(entryId, reactions) {
