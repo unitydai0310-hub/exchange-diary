@@ -22,6 +22,9 @@ export async function POST(request, { params }) {
     if (!Array.isArray(room.members) || room.members.length === 0) {
       return NextResponse.json({ error: '抽選対象メンバーがいません' }, { status: 409 });
     }
+    if (!room.hostNickname || session.nickname !== room.hostNickname) {
+      return NextResponse.json({ error: '抽選はホストのみ実行できます' }, { status: 403 });
+    }
 
     const body = await request.json().catch(() => ({}));
     const requestedDate = String(body.date || '').trim();
@@ -29,7 +32,7 @@ export async function POST(request, { params }) {
 
     const existing = room.lotteryAssignments[date];
     if (existing?.winners?.length) {
-      return NextResponse.json({ assignment: { date, ...existing }, reused: true });
+      return NextResponse.json({ error: `${date} の抽選はすでに実施済みです` }, { status: 409 });
     }
 
     const assignment = {

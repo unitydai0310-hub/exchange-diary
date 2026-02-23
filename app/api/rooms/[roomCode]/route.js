@@ -42,6 +42,7 @@ export async function GET(request, { params }) {
       room: {
         code: room.code,
         name: room.name,
+        hostNickname: room.hostNickname || '',
         members: room.members,
         createdAt: room.createdAt,
         lotteryAssignments: room.lotteryAssignments || {}

@@ -28,6 +28,7 @@ export async function POST(request) {
         code: roomCode,
         name: roomName,
         createdAt: new Date().toISOString(),
+        hostNickname: nickname,
         members: [nickname],
         entries: [],
         lotteryAssignments: {}

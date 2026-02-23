@@ -61,6 +61,7 @@ export function normalizeRoom(room, roomCode) {
       code: roomCode,
       name: '交換日記ルーム',
       createdAt: new Date().toISOString(),
+      hostNickname: '',
       members: [],
       entries: [],
       lotteryAssignments: {}
@@ -71,6 +72,10 @@ export function normalizeRoom(room, roomCode) {
   room.name = String(room.name || '交換日記ルーム');
   room.createdAt = room.createdAt || new Date().toISOString();
   room.members = Array.isArray(room.members) ? room.members.map((m) => normalizeNickname(m)).filter(Boolean) : [];
+  room.hostNickname = normalizeNickname(room.hostNickname || '');
+  if (!room.hostNickname && room.members.length > 0) {
+    room.hostNickname = room.members[0];
+  }
   room.entries = Array.isArray(room.entries) ? room.entries : [];
   room.lotteryAssignments = room.lotteryAssignments && typeof room.lotteryAssignments === 'object'
     ? room.lotteryAssignments

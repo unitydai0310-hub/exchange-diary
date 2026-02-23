@@ -5,6 +5,7 @@ const state = {
   nickname: '',
   inviteUrl: '',
   savedRooms: [],
+  hostNickname: '',
   members: [],
   lotteryAssignments: {},
   entries: [],
@@ -224,6 +225,7 @@ async function switchRoom(roomCode) {
   state.roomName = target.roomName;
   state.nickname = target.nickname;
   state.inviteUrl = target.inviteUrl || `${location.origin}/?room=${target.roomCode}`;
+  state.hostNickname = '';
   state.entries = [];
   state.lotteryAssignments = {};
   state.dayPageIndex = 0;
@@ -448,6 +450,7 @@ function updateEntryReactions(entryId, reactions) {
 async function refreshRoom() {
   const data = await api(`/api/rooms/${state.roomCode}`);
   state.roomName = data.room.name;
+  state.hostNickname = String(data.room.hostNickname || '');
   state.members = Array.isArray(data.room.members) ? data.room.members : [];
   state.lotteryAssignments = data.room.lotteryAssignments || {};
   setEntries(data.entries);
@@ -471,6 +474,7 @@ function applySession(data) {
 
 function renderLottery() {
   if (!el.lotteryStatus || !el.drawLottery || !el.entryForm) return;
+  const isHost = state.hostNickname && state.nickname === state.hostNickname;
 
   const nextDate = tomorrowKey();
   const currentDateInput = el.entryForm.querySelector('input[name="date"]');
@@ -486,7 +490,17 @@ function renderLottery() {
         : [];
     el.lotteryStatus.textContent = `明日(${nextDate})の担当: ${winners.join(' / ')}`;
   } else {
-    el.lotteryStatus.textContent = `明日(${nextDate})の担当: 未抽選`;
+    const hostLabel = state.hostNickname ? `${state.hostNickname}（ホスト）` : 'ホスト';
+    el.lotteryStatus.textContent = `明日(${nextDate})の担当: 未抽選（抽選可能: ${hostLabel}）`;
+  }
+
+  el.drawLottery.disabled = !isHost || Boolean(next);
+  if (next) {
+    el.drawLottery.textContent = '抽選済み';
+  } else if (isHost) {
+    el.drawLottery.textContent = '明日の担当を抽選';
+  } else {
+    el.drawLottery.textContent = 'ホストのみ抽選可能';
   }
 
   const chosenDate = currentDateInput?.value || todayKey();
