@@ -4,6 +4,7 @@ const state = {
   roomName: '',
   nickname: '',
   inviteUrl: '',
+  savedRooms: [],
   members: [],
   lotteryAssignments: {},
   entries: [],
@@ -13,6 +14,8 @@ const state = {
 };
 
 const REACTION_EMOJIS = ['👍', '❤️', '😂', '👏', '✨', '🙏'];
+const ROOM_STORE_KEY = 'exchange-diary-rooms';
+const AUTH_STORE_KEY = 'exchange-diary-auth';
 
 const el = {
   authPanel: document.querySelector('#auth-panel'),
@@ -28,6 +31,9 @@ const el = {
   roomTitle: document.querySelector('#room-title'),
   inviteLink: document.querySelector('#invite-link'),
   copyInvite: document.querySelector('#copy-invite'),
+  roomSwitcher: document.querySelector('#room-switcher'),
+  openAuth: document.querySelector('#open-auth'),
+  backToApp: document.querySelector('#back-to-app'),
   monthLabel: document.querySelector('#month-label'),
   calendar: document.querySelector('#calendar'),
   dailyPage: document.querySelector('#daily-page'),
@@ -74,9 +80,74 @@ function updateMeta() {
   el.inviteLink.textContent = state.inviteUrl;
 }
 
+function normalizeSavedRoom(item) {
+  const roomCode = String(item?.roomCode || '').trim().toUpperCase();
+  const token = String(item?.token || '').trim();
+  const nickname = String(item?.nickname || '').trim();
+  if (!roomCode || !token || !nickname) return null;
+
+  return {
+    roomCode,
+    token,
+    nickname,
+    roomName: String(item?.roomName || '').trim() || roomCode,
+    inviteUrl: String(item?.inviteUrl || '').trim(),
+    lastUsedAt: Number(item?.lastUsedAt || Date.now())
+  };
+}
+
+function loadSavedRooms() {
+  const raw = localStorage.getItem(ROOM_STORE_KEY);
+  if (!raw) {
+    state.savedRooms = [];
+    return;
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    const list = Array.isArray(parsed) ? parsed.map(normalizeSavedRoom).filter(Boolean) : [];
+    state.savedRooms = list.sort((a, b) => b.lastUsedAt - a.lastUsedAt);
+  } catch {
+    state.savedRooms = [];
+    localStorage.removeItem(ROOM_STORE_KEY);
+  }
+}
+
+function persistSavedRooms() {
+  localStorage.setItem(ROOM_STORE_KEY, JSON.stringify(state.savedRooms));
+}
+
+function upsertCurrentRoom() {
+  if (!state.roomCode || !state.token || !state.nickname) return;
+  const payload = normalizeSavedRoom({
+    roomCode: state.roomCode,
+    token: state.token,
+    nickname: state.nickname,
+    roomName: state.roomName,
+    inviteUrl: state.inviteUrl,
+    lastUsedAt: Date.now()
+  });
+  if (!payload) return;
+
+  const index = state.savedRooms.findIndex((item) => item.roomCode === payload.roomCode);
+  if (index >= 0) {
+    state.savedRooms[index] = payload;
+  } else {
+    state.savedRooms.push(payload);
+  }
+  state.savedRooms.sort((a, b) => b.lastUsedAt - a.lastUsedAt);
+  persistSavedRooms();
+}
+
+function removeSavedRoom(roomCode) {
+  state.savedRooms = state.savedRooms.filter((item) => item.roomCode !== roomCode);
+  persistSavedRooms();
+}
+
 function saveAuth() {
+  upsertCurrentRoom();
   localStorage.setItem(
-    'exchange-diary-auth',
+    AUTH_STORE_KEY,
     JSON.stringify({
       token: state.token,
       roomCode: state.roomCode,
@@ -88,30 +159,84 @@ function saveAuth() {
 }
 
 function restoreAuth() {
-  const saved = localStorage.getItem('exchange-diary-auth');
-  if (!saved) return;
+  loadSavedRooms();
+  const saved = localStorage.getItem(AUTH_STORE_KEY);
 
-  try {
-    const auth = JSON.parse(saved);
-    state.token = auth.token || '';
-    state.roomCode = auth.roomCode || '';
-    state.roomName = auth.roomName || '';
-    state.nickname = auth.nickname || '';
-    state.inviteUrl = auth.inviteUrl || '';
-  } catch {
-    localStorage.removeItem('exchange-diary-auth');
+  if (saved) {
+    try {
+      const auth = JSON.parse(saved);
+      state.token = auth.token || '';
+      state.roomCode = auth.roomCode || '';
+      state.roomName = auth.roomName || '';
+      state.nickname = auth.nickname || '';
+      state.inviteUrl = auth.inviteUrl || '';
+    } catch {
+      localStorage.removeItem(AUTH_STORE_KEY);
+    }
+  }
+
+  if ((!state.token || !state.roomCode) && state.savedRooms.length > 0) {
+    const latest = state.savedRooms[0];
+    state.token = latest.token;
+    state.roomCode = latest.roomCode;
+    state.roomName = latest.roomName;
+    state.nickname = latest.nickname;
+    state.inviteUrl = latest.inviteUrl;
   }
 }
 
 function openAppPanel() {
   el.authPanel.classList.add('hidden');
   el.appPanel.classList.remove('hidden');
+  if (el.backToApp) el.backToApp.classList.add('hidden');
   updateMeta();
 }
 
 function openAuthPanel() {
   el.authPanel.classList.remove('hidden');
   el.appPanel.classList.add('hidden');
+  if (el.backToApp && state.roomCode) {
+    el.backToApp.classList.remove('hidden');
+  }
+}
+
+function renderRoomSwitcher() {
+  if (!el.roomSwitcher) return;
+
+  const options = state.savedRooms
+    .map((item) => {
+      const selected = item.roomCode === state.roomCode ? 'selected' : '';
+      const label = `${item.roomName} (${item.roomCode}) / ${item.nickname}`;
+      return `<option value="${item.roomCode}" ${selected}>${escapeHtml(label)}</option>`;
+    })
+    .join('');
+
+  el.roomSwitcher.innerHTML = options || '<option value="">保存済みルームなし</option>';
+  el.roomSwitcher.disabled = state.savedRooms.length <= 1;
+}
+
+async function switchRoom(roomCode) {
+  const target = state.savedRooms.find((item) => item.roomCode === roomCode);
+  if (!target) return;
+
+  state.token = target.token;
+  state.roomCode = target.roomCode;
+  state.roomName = target.roomName;
+  state.nickname = target.nickname;
+  state.inviteUrl = target.inviteUrl || `${location.origin}/?room=${target.roomCode}`;
+  state.entries = [];
+  state.lotteryAssignments = {};
+  state.dayPageIndex = 0;
+
+  openAppPanel();
+  try {
+    await refreshRoom();
+    startPolling();
+    notice(`${state.roomName} に切り替えました`);
+  } catch (error) {
+    removeSavedRoom(roomCode);
+    throw error;
+  }
 }
 
 function setEntries(entries) {
@@ -308,6 +433,7 @@ function render() {
   renderBookPage();
   renderCalendar();
   renderLottery();
+  renderRoomSwitcher();
 }
 
 function updateEntryReactions(entryId, reactions) {
@@ -328,6 +454,19 @@ async function refreshRoom() {
   saveAuth();
   updateMeta();
   render();
+}
+
+function applySession(data) {
+  state.token = data.token;
+  state.roomCode = data.roomCode;
+  state.roomName = data.roomName;
+  state.nickname = data.nickname;
+  state.inviteUrl = data.inviteUrl?.startsWith('http')
+    ? data.inviteUrl
+    : `${location.origin}${data.inviteUrl || `/?room=${data.roomCode}`}`;
+  saveAuth();
+  updateMeta();
+  renderRoomSwitcher();
 }
 
 function renderLottery() {
@@ -424,13 +563,7 @@ async function handleCreate(event) {
     })
   });
 
-  state.token = data.token;
-  state.roomCode = data.roomCode;
-  state.roomName = data.roomName;
-  state.nickname = data.nickname;
-  state.inviteUrl = `${location.origin}${data.inviteUrl}`;
-
-  saveAuth();
+  applySession(data);
   openAppPanel();
   await refreshRoom();
   startPolling();
@@ -449,13 +582,7 @@ async function handleJoin(event) {
     })
   });
 
-  state.token = data.token;
-  state.roomCode = data.roomCode;
-  state.roomName = data.roomName;
-  state.nickname = data.nickname;
-  state.inviteUrl = `${location.origin}${data.inviteUrl}`;
-
-  saveAuth();
+  applySession(data);
   openAppPanel();
   await refreshRoom();
   startPolling();
@@ -572,6 +699,28 @@ function bindEvents() {
     });
   }
 
+  if (el.roomSwitcher) {
+    el.roomSwitcher.addEventListener('change', (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLSelectElement)) return;
+      const nextRoomCode = target.value;
+      if (!nextRoomCode || nextRoomCode === state.roomCode) return;
+      switchRoom(nextRoomCode).catch((err) => notice(err.message, 'err'));
+    });
+  }
+
+  if (el.openAuth) {
+    el.openAuth.addEventListener('click', () => {
+      openAuthPanel();
+    });
+  }
+
+  if (el.backToApp) {
+    el.backToApp.addEventListener('click', () => {
+      openAppPanel();
+    });
+  }
+
   el.copyInvite.addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(state.inviteUrl);
@@ -640,6 +789,7 @@ async function bootstrap() {
   bindEvents();
   applyInviteFromUrl();
   restoreAuth();
+  renderRoomSwitcher();
 
   if (!state.token || !state.roomCode) {
     openAuthPanel();
@@ -652,10 +802,12 @@ async function bootstrap() {
     await refreshRoom();
     startPolling();
   } catch {
-    localStorage.removeItem('exchange-diary-auth');
+    removeSavedRoom(state.roomCode);
+    localStorage.removeItem(AUTH_STORE_KEY);
     state.token = '';
     state.roomCode = '';
     openAuthPanel();
+    renderRoomSwitcher();
     updateMeta();
   }
 }

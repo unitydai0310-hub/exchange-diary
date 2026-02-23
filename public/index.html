@@ -19,6 +19,7 @@
 
         <section class="panel auth" id="auth-panel">
           <h2>ルームに参加する</h2>
+          <button id="back-to-app" class="mini-btn hidden" type="button">参加中ルームに戻る</button>
           <div class="auth-grid">
             <form id="create-form" class="card">
               <h3>新規ルーム作成</h3>
@@ -42,7 +43,16 @@
               <h2 id="room-title">-</h2>
               <p>招待リンク: <span id="invite-link"></span></p>
             </div>
-            <button id="copy-invite">招待リンクをコピー</button>
+            <div class="room-actions-right">
+              <label class="room-switch-label">
+                参加済みルーム
+                <select id="room-switcher"></select>
+              </label>
+              <div class="room-actions-buttons">
+                <button id="open-auth" type="button">別ルームに参加</button>
+                <button id="copy-invite" type="button">招待リンクをコピー</button>
+              </div>
+            </div>
           </div>
 
           <div class="workspace">
