@@ -11,6 +11,7 @@ const state = {
   members: [],
   lotteryAssignments: {},
   entries: [],
+  commentDrafts: {},
   dayPageIndex: 0,
   monthCursor: new Date(),
   pollTimer: null
@@ -401,6 +402,7 @@ function renderBookPage() {
             `;
           })
           .join('');
+        const draftValue = state.commentDrafts[entry.id] || '';
 
         return `
           <article class="day-entry">
@@ -420,6 +422,7 @@ function renderBookPage() {
                   data-entry-id="${entry.id}"
                   maxlength="300"
                   placeholder="コメントを書く"
+                  value="${escapeHtml(draftValue)}"
                 />
                 <button type="button" class="comment-submit" data-entry-id="${entry.id}">送信</button>
               </div>
@@ -853,6 +856,7 @@ async function submitComment(entryId, body) {
     body: JSON.stringify({ body: text })
   });
 
+  delete state.commentDrafts[entryId];
   await refreshRoom();
 }
 
@@ -983,6 +987,7 @@ function bindEvents() {
       if (!entryId) return;
       const input = el.dailyPage.querySelector(`.comment-input[data-entry-id="${entryId}"]`);
       if (!(input instanceof HTMLInputElement)) return;
+      state.commentDrafts[entryId] = input.value;
       submitComment(entryId, input.value)
         .then(() => {
           input.value = '';
@@ -992,19 +997,12 @@ function bindEvents() {
     }
   });
 
-  el.dailyPage.addEventListener('keydown', (event) => {
+  el.dailyPage.addEventListener('input', (event) => {
     if (!(event.target instanceof HTMLInputElement)) return;
     if (!event.target.classList.contains('comment-input')) return;
-    if (event.key !== 'Enter') return;
-    event.preventDefault();
     const entryId = event.target.dataset.entryId;
     if (!entryId) return;
-    submitComment(entryId, event.target.value)
-      .then(() => {
-        event.target.value = '';
-        notice('コメントを投稿しました');
-      })
-      .catch((err) => notice(err.message, 'err'));
+    state.commentDrafts[entryId] = event.target.value;
   });
 
   if (dateField) {
