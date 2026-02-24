@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { authFromRequest } from '../../../../_lib/auth.js';
+import { notifyLotteryWinners } from '../../../../_lib/push.js';
 import { getTomorrowDateKey, isDateKey, normalizeRoom, normalizeRoomCode, pickWinners } from '../../../../_lib/rooms.js';
 import { getRoom, saveRoom } from '../../../../_lib/store.js';
 
@@ -43,6 +44,7 @@ export async function POST(request, { params }) {
 
     room.lotteryAssignments[date] = assignment;
     await saveRoom(roomCode, room);
+    await notifyLotteryWinners(room, date, assignment.winners);
 
     return NextResponse.json({ assignment: { date, ...assignment }, reused: false }, { status: 201 });
   } catch (error) {

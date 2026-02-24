@@ -64,7 +64,8 @@ export function normalizeRoom(room, roomCode) {
       hostNickname: '',
       members: [],
       entries: [],
-      lotteryAssignments: {}
+      lotteryAssignments: {},
+      pushSubscriptions: {}
     };
   }
 
@@ -77,9 +78,32 @@ export function normalizeRoom(room, roomCode) {
     room.hostNickname = room.members[0];
   }
   room.entries = Array.isArray(room.entries) ? room.entries : [];
+  room.pushSubscriptions = room.pushSubscriptions && typeof room.pushSubscriptions === 'object'
+    ? room.pushSubscriptions
+    : {};
   room.lotteryAssignments = room.lotteryAssignments && typeof room.lotteryAssignments === 'object'
     ? room.lotteryAssignments
     : {};
+
+  for (const nickname of Object.keys(room.pushSubscriptions)) {
+    const safeNickname = normalizeNickname(nickname);
+    const list = Array.isArray(room.pushSubscriptions[nickname]) ? room.pushSubscriptions[nickname] : [];
+    const safeList = list
+      .filter((item) => item && typeof item === 'object' && item.endpoint && item.keys?.p256dh && item.keys?.auth)
+      .map((item) => ({
+        endpoint: String(item.endpoint),
+        expirationTime: item.expirationTime ?? null,
+        keys: {
+          p256dh: String(item.keys.p256dh),
+          auth: String(item.keys.auth)
+        }
+      }));
+
+    delete room.pushSubscriptions[nickname];
+    if (safeNickname && safeList.length > 0) {
+      room.pushSubscriptions[safeNickname] = safeList;
+    }
+  }
 
   for (const date of Object.keys(room.lotteryAssignments)) {
     if (!isDateKey(date)) {

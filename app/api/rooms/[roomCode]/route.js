@@ -37,6 +37,8 @@ export async function GET(request, { params }) {
       .slice()
       .sort((a, b) => (a.date < b.date ? 1 : -1))
       .map(toPublicEntry);
+    const mePushEnabled = Array.isArray(room.pushSubscriptions?.[session.nickname])
+      && room.pushSubscriptions[session.nickname].length > 0;
 
     return NextResponse.json({
       room: {
@@ -45,7 +47,8 @@ export async function GET(request, { params }) {
         hostNickname: room.hostNickname || '',
         members: room.members,
         createdAt: room.createdAt,
-        lotteryAssignments: room.lotteryAssignments || {}
+        lotteryAssignments: room.lotteryAssignments || {},
+        mePushEnabled
       },
       me: session.nickname,
       entries

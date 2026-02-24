@@ -29,6 +29,16 @@ KV/Blob は連携時に自動投入される前提:
 - `KV_REST_API_TOKEN`
 - `BLOB_READ_WRITE_TOKEN`
 
+Web Push を使う場合は追加:
+- `VAPID_PUBLIC_KEY`
+- `VAPID_PRIVATE_KEY`
+- `VAPID_SUBJECT`（例: `mailto:your-email@example.com`）
+
+VAPID鍵の生成例:
+```bash
+npx web-push generate-vapid-keys
+```
+
 ## 4. 再デプロイ
 環境変数追加後に再デプロイ。
 

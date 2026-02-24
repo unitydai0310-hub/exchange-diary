@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { authFromRequest } from '../../../_lib/auth.js';
 import { MAX_MEDIA_PER_POST } from '../../../_lib/constants.js';
+import { notifyNewEntry } from '../../../_lib/push.js';
 import { newEntryId, normalizeRoom, normalizeRoomCode } from '../../../_lib/rooms.js';
 import { getRoom, saveRoom } from '../../../_lib/store.js';
 
@@ -83,6 +84,7 @@ export async function POST(request, { params }) {
 
     room.entries.push(entry);
     await saveRoom(roomCode, room);
+    await notifyNewEntry(room, entry);
 
     return NextResponse.json({ entry }, { status: 201 });
   } catch (error) {

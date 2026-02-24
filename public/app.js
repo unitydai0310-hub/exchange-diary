@@ -6,6 +6,8 @@ const state = {
   inviteUrl: '',
   savedRooms: [],
   hostNickname: '',
+  pushEnabled: false,
+  pushSupported: false,
   members: [],
   lotteryAssignments: {},
   entries: [],
@@ -32,6 +34,7 @@ const el = {
   roomTitle: document.querySelector('#room-title'),
   inviteLink: document.querySelector('#invite-link'),
   copyInvite: document.querySelector('#copy-invite'),
+  pushToggle: document.querySelector('#push-toggle'),
   roomSwitcher: document.querySelector('#room-switcher'),
   openAuth: document.querySelector('#open-auth'),
   backToApp: document.querySelector('#back-to-app'),
@@ -72,6 +75,26 @@ async function api(path, options = {}) {
     throw new Error(data.error || '通信エラーが発生しました');
   }
   return data;
+}
+
+function isPushSupported() {
+  return (
+    typeof window !== 'undefined' &&
+    'serviceWorker' in navigator &&
+    'PushManager' in window &&
+    'Notification' in window
+  );
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i += 1) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
 }
 
 function updateMeta() {
@@ -439,6 +462,19 @@ function render() {
   renderLottery();
   renderMembers();
   renderRoomSwitcher();
+  renderPushToggle();
+}
+
+function renderPushToggle() {
+  if (!el.pushToggle) return;
+  if (!state.pushSupported) {
+    el.pushToggle.disabled = true;
+    el.pushToggle.textContent = 'この端末は通知非対応';
+    return;
+  }
+
+  el.pushToggle.disabled = false;
+  el.pushToggle.textContent = state.pushEnabled ? '通知を無効化' : '通知を有効化';
 }
 
 function renderMembers() {
@@ -475,6 +511,7 @@ async function refreshRoom() {
   const data = await api(`/api/rooms/${state.roomCode}`);
   state.roomName = data.room.name;
   state.hostNickname = String(data.room.hostNickname || '');
+  state.pushEnabled = Boolean(data.room.mePushEnabled);
   state.members = Array.isArray(data.room.members) ? data.room.members : [];
   state.lotteryAssignments = data.room.lotteryAssignments || {};
   setEntries(data.entries);
@@ -557,6 +594,79 @@ function startPolling() {
       // ignore polling errors
     });
   }, 5000);
+}
+
+async function getServiceWorkerRegistration() {
+  const reg = await navigator.serviceWorker.register('/sw.js');
+  return reg;
+}
+
+async function getPushPublicKey() {
+  const res = await fetch('/api/push/public-key');
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.publicKey) {
+    throw new Error(data.error || '通知公開鍵の取得に失敗しました');
+  }
+  return data.publicKey;
+}
+
+async function enablePushForCurrentRoom() {
+  if (!state.roomCode) throw new Error('ルームに参加してから設定してください');
+
+  const permission = await Notification.requestPermission();
+  if (permission !== 'granted') {
+    throw new Error('通知の許可が必要です');
+  }
+
+  const reg = await getServiceWorkerRegistration();
+  let subscription = await reg.pushManager.getSubscription();
+  if (!subscription) {
+    const publicKey = await getPushPublicKey();
+    subscription = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(publicKey)
+    });
+  }
+
+  await api(`/api/rooms/${state.roomCode}/push/subscription`, {
+    method: 'POST',
+    body: JSON.stringify({ subscription })
+  });
+
+  state.pushEnabled = true;
+  renderPushToggle();
+}
+
+async function disablePushForCurrentRoom() {
+  const reg = await getServiceWorkerRegistration();
+  const subscription = await reg.pushManager.getSubscription();
+  if (!subscription) {
+    state.pushEnabled = false;
+    renderPushToggle();
+    return;
+  }
+
+  await api(`/api/rooms/${state.roomCode}/push/subscription`, {
+    method: 'DELETE',
+    body: JSON.stringify({ endpoint: subscription.endpoint })
+  });
+
+  state.pushEnabled = false;
+  renderPushToggle();
+}
+
+async function togglePushForCurrentRoom() {
+  if (!state.pushSupported) {
+    notice('この端末は通知に対応していません', 'err');
+    return;
+  }
+  if (state.pushEnabled) {
+    await disablePushForCurrentRoom();
+    notice('通知を無効化しました');
+  } else {
+    await enablePushForCurrentRoom();
+    notice('通知を有効化しました');
+  }
 }
 
 async function uploadMedia(file) {
@@ -737,6 +847,12 @@ function bindEvents() {
     });
   }
 
+  if (el.pushToggle) {
+    el.pushToggle.addEventListener('click', () => {
+      togglePushForCurrentRoom().catch((err) => notice(err.message, 'err'));
+    });
+  }
+
   if (el.roomSwitcher) {
     el.roomSwitcher.addEventListener('change', (event) => {
       const target = event.target;
@@ -824,6 +940,7 @@ function bindEvents() {
 }
 
 async function bootstrap() {
+  state.pushSupported = isPushSupported();
   bindEvents();
   applyInviteFromUrl();
   restoreAuth();
