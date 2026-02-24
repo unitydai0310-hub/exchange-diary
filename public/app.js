@@ -87,6 +87,19 @@ function isPushSupported() {
   );
 }
 
+function isIosDevice() {
+  if (typeof window === 'undefined') return false;
+  const ua = window.navigator.userAgent || '';
+  return /iPhone|iPad|iPod/i.test(ua);
+}
+
+function isStandalonePwa() {
+  if (typeof window === 'undefined') return false;
+  const mediaStandalone = window.matchMedia?.('(display-mode: standalone)')?.matches;
+  const navigatorStandalone = window.navigator.standalone === true;
+  return Boolean(mediaStandalone || navigatorStandalone);
+}
+
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -520,7 +533,11 @@ function renderPushToggle() {
   if (!el.pushToggle) return;
   if (!state.pushSupported) {
     el.pushToggle.disabled = true;
-    el.pushToggle.textContent = 'この端末は通知非対応';
+    if (isIosDevice() && !isStandalonePwa()) {
+      el.pushToggle.textContent = 'iPhoneはホーム画面追加後に通知対応';
+    } else {
+      el.pushToggle.textContent = 'この端末は通知非対応';
+    }
     return;
   }
 
