@@ -337,6 +337,13 @@ function canPostOn(date, nickname) {
 
 function renderBookPage() {
   const pages = getDayPages();
+  const activeInput = document.activeElement instanceof HTMLInputElement
+    && document.activeElement.classList.contains('comment-input')
+    ? document.activeElement
+    : null;
+  const focusEntryId = activeInput?.dataset.entryId || '';
+  const focusStart = activeInput?.selectionStart ?? null;
+  const focusEnd = activeInput?.selectionEnd ?? null;
 
   if (pages.length === 0) {
     el.pageLabel.textContent = '0 / 0';
@@ -437,6 +444,18 @@ function renderBookPage() {
   el.prevPage.disabled = state.dayPageIndex === 0;
   el.nextPage.disabled = state.dayPageIndex === pages.length - 1;
   el.dailyPage.innerHTML = html;
+
+  if (focusEntryId) {
+    const nextInput = el.dailyPage.querySelector(`.comment-input[data-entry-id="${focusEntryId}"]`);
+    if (nextInput instanceof HTMLInputElement) {
+      nextInput.focus();
+      if (typeof focusStart === 'number' && typeof focusEnd === 'number') {
+        const safeStart = Math.min(focusStart, nextInput.value.length);
+        const safeEnd = Math.min(focusEnd, nextInput.value.length);
+        nextInput.setSelectionRange(safeStart, safeEnd);
+      }
+    }
+  }
 }
 
 function renderCalendar() {
@@ -622,6 +641,10 @@ function startPolling() {
   }
   state.pollTimer = setInterval(() => {
     if (!state.token || !state.roomCode) return;
+    const active = document.activeElement;
+    if (active instanceof HTMLInputElement && active.classList.contains('comment-input')) {
+      return;
+    }
     refreshRoom().catch(() => {
       // ignore polling errors
     });
