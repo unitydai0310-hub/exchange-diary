@@ -386,6 +386,22 @@ function renderBookPage() {
           `;
         }).join('');
 
+        const commentsHtml = (Array.isArray(entry.comments) ? entry.comments : [])
+          .map((comment) => {
+            const time = new Date(comment.createdAt).toLocaleTimeString('ja-JP', {
+              hour: '2-digit',
+              minute: '2-digit'
+            });
+            return `
+              <li class="comment-item">
+                <strong>${escapeHtml(comment.author)}</strong>
+                <span>${escapeHtml(comment.body)}</span>
+                <time>${time}</time>
+              </li>
+            `;
+          })
+          .join('');
+
         return `
           <article class="day-entry">
             <div class="day-entry-head">
@@ -395,6 +411,19 @@ function renderBookPage() {
             <p>${escapeHtml(entry.body || '')}</p>
             ${mediaHtml ? `<div class="media-row">${mediaHtml}</div>` : ''}
             <div class="reaction-row">${reactionHtml}</div>
+            <div class="comment-section">
+              <ul class="comment-list">${commentsHtml || '<li class="comment-empty">コメントはまだありません</li>'}</ul>
+              <div class="comment-form">
+                <input
+                  type="text"
+                  class="comment-input"
+                  data-entry-id="${entry.id}"
+                  maxlength="300"
+                  placeholder="コメントを書く"
+                />
+                <button type="button" class="comment-submit" data-entry-id="${entry.id}">送信</button>
+              </div>
+            </div>
           </article>
         `;
       })
@@ -813,6 +842,20 @@ async function toggleReaction(entryId, emoji) {
   renderBookPage();
 }
 
+async function submitComment(entryId, body) {
+  const text = String(body || '').trim();
+  if (!text) {
+    throw new Error('コメント本文を入力してください');
+  }
+
+  await api(`/api/rooms/${state.roomCode}/entries/${entryId}/comments`, {
+    method: 'POST',
+    body: JSON.stringify({ body: text })
+  });
+
+  await refreshRoom();
+}
+
 function applyInviteFromUrl() {
   const params = new URLSearchParams(location.search);
   const room = (params.get('room') || '').trim().toUpperCase();
@@ -926,12 +969,42 @@ function bindEvents() {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
     const button = target.closest('.reaction-btn');
-    if (!(button instanceof HTMLButtonElement)) return;
-    const entryId = button.dataset.entryId;
-    const emoji = button.dataset.emoji;
-    if (!entryId || !emoji) return;
+    if (button instanceof HTMLButtonElement) {
+      const entryId = button.dataset.entryId;
+      const emoji = button.dataset.emoji;
+      if (!entryId || !emoji) return;
+      toggleReaction(entryId, emoji).catch((err) => notice(err.message, 'err'));
+      return;
+    }
 
-    toggleReaction(entryId, emoji).catch((err) => notice(err.message, 'err'));
+    const commentSubmit = target.closest('.comment-submit');
+    if (commentSubmit instanceof HTMLButtonElement) {
+      const entryId = commentSubmit.dataset.entryId;
+      if (!entryId) return;
+      const input = el.dailyPage.querySelector(`.comment-input[data-entry-id="${entryId}"]`);
+      if (!(input instanceof HTMLInputElement)) return;
+      submitComment(entryId, input.value)
+        .then(() => {
+          input.value = '';
+          notice('コメントを投稿しました');
+        })
+        .catch((err) => notice(err.message, 'err'));
+    }
+  });
+
+  el.dailyPage.addEventListener('keydown', (event) => {
+    if (!(event.target instanceof HTMLInputElement)) return;
+    if (!event.target.classList.contains('comment-input')) return;
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    const entryId = event.target.dataset.entryId;
+    if (!entryId) return;
+    submitComment(entryId, event.target.value)
+      .then(() => {
+        event.target.value = '';
+        notice('コメントを投稿しました');
+      })
+      .catch((err) => notice(err.message, 'err'));
   });
 
   if (dateField) {

@@ -55,6 +55,23 @@ export function normalizeEntryReactions(entry) {
   }
 }
 
+export function normalizeEntryComments(entry) {
+  if (!Array.isArray(entry.comments)) {
+    entry.comments = [];
+    return;
+  }
+
+  entry.comments = entry.comments
+    .filter((item) => item && typeof item === 'object')
+    .map((item) => ({
+      id: String(item.id || crypto.randomUUID()),
+      author: normalizeNickname(item.author || ''),
+      body: String(item.body || '').trim(),
+      createdAt: item.createdAt || new Date().toISOString()
+    }))
+    .filter((item) => item.author && item.body);
+}
+
 export function normalizeRoom(room, roomCode) {
   if (!room || typeof room !== 'object') {
     return {
@@ -131,6 +148,7 @@ export function normalizeRoom(room, roomCode) {
 
   for (const entry of room.entries) {
     normalizeEntryReactions(entry);
+    normalizeEntryComments(entry);
     if (!Array.isArray(entry.media)) {
       entry.media = [];
     }

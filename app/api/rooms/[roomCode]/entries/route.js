@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { authFromRequest } from '../../../_lib/auth.js';
-import { MAX_MEDIA_PER_POST } from '../../../_lib/constants.js';
+import { MAX_DAILY_AUTHORS, MAX_MEDIA_PER_POST } from '../../../_lib/constants.js';
 import { notifyNewEntry } from '../../../_lib/push.js';
 import { newEntryId, normalizeRoom, normalizeRoomCode } from '../../../_lib/rooms.js';
 import { getRoom, saveRoom } from '../../../_lib/store.js';
@@ -63,6 +63,16 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: '同じ日付には1人1件までです' }, { status: 409 });
     }
 
+    const authorsOnDate = new Set(
+      room.entries.filter((entry) => entry.date === date).map((entry) => entry.author)
+    );
+    if (!authorsOnDate.has(session.nickname) && authorsOnDate.size >= MAX_DAILY_AUTHORS) {
+      return NextResponse.json(
+        { error: `同じ日付の投稿は最大${MAX_DAILY_AUTHORS}人までです` },
+        { status: 409 }
+      );
+    }
+
     const safeMedia = media
       .map((item) => ({
         name: String(item?.name || 'file'),
@@ -79,7 +89,8 @@ export async function POST(request, { params }) {
       body: entryBody,
       createdAt: new Date().toISOString(),
       media: safeMedia,
-      reactions: {}
+      reactions: {},
+      comments: []
     };
 
     room.entries.push(entry);

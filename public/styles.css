@@ -703,6 +703,63 @@ button:hover {
   border-color: #d7a992;
 }
 
+.comment-section {
+  margin-top: 0.6rem;
+  border-top: 1px dashed #d8c5b0;
+  padding-top: 0.55rem;
+}
+
+.comment-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.comment-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.45rem;
+  align-items: center;
+  font-size: 0.82rem;
+}
+
+.comment-item strong {
+  color: #7b6053;
+}
+
+.comment-item time {
+  font-family: var(--font-en);
+  color: #9a7d70;
+  font-size: 0.72rem;
+}
+
+.comment-empty {
+  color: #9a8477;
+  font-size: 0.8rem;
+}
+
+.comment-form {
+  margin-top: 0.42rem;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.comment-form .comment-input {
+  margin: 0;
+  padding: 0.4rem 0.5rem;
+}
+
+.comment-form .comment-submit {
+  width: auto;
+  margin: 0;
+  padding: 0.38rem 0.72rem;
+  border-radius: 10px;
+}
+
 .empty-page {
   height: 100%;
   min-height: 280px;

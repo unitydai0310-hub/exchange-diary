@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { authFromRequest } from '../../_lib/auth.js';
-import { normalizeEntryReactions, normalizeRoom, normalizeRoomCode } from '../../_lib/rooms.js';
+import { normalizeEntryComments, normalizeEntryReactions, normalizeRoom, normalizeRoomCode } from '../../_lib/rooms.js';
 import { getRoom } from '../../_lib/store.js';
 
 export const runtime = 'nodejs';
 
 function toPublicEntry(entry) {
   normalizeEntryReactions(entry);
+  normalizeEntryComments(entry);
   return {
     id: entry.id,
     roomCode: entry.roomCode,
@@ -15,7 +16,8 @@ function toPublicEntry(entry) {
     date: entry.date,
     createdAt: entry.createdAt,
     media: Array.isArray(entry.media) ? entry.media : [],
-    reactions: entry.reactions || {}
+    reactions: entry.reactions || {},
+    comments: Array.isArray(entry.comments) ? entry.comments : []
   };
 }
 
