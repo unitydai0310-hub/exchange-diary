@@ -549,6 +549,7 @@ function renderMembers() {
   if (!el.memberList || !el.memberCount) return;
 
   const members = Array.isArray(state.members) ? state.members : [];
+  const isHost = Boolean(state.hostNickname) && state.nickname === state.hostNickname;
   el.memberCount.textContent = `${members.length}名`;
 
   if (members.length === 0) {
@@ -561,9 +562,63 @@ function renderMembers() {
       const hostBadge = state.hostNickname && name === state.hostNickname
         ? '<span class="badge">HOST</span>'
         : '';
-      return `<li class="member-item"><span>${escapeHtml(name)}</span>${hostBadge}</li>`;
+      const canRemove = isHost && name !== state.hostNickname;
+      const canTransfer = isHost && name !== state.hostNickname;
+      const removeButton = canRemove
+        ? `<button class="member-remove-btn" type="button" data-member-name="${escapeHtml(name)}">削除</button>`
+        : '';
+      const transferButton = canTransfer
+        ? `<button class="member-transfer-btn" type="button" data-member-name="${escapeHtml(name)}">権限譲渡</button>`
+        : '';
+      return `
+        <li class="member-item">
+          <span>${escapeHtml(name)}</span>
+          <div class="member-item-actions">
+            ${hostBadge}
+            ${transferButton}
+            ${removeButton}
+          </div>
+        </li>
+      `;
     })
     .join('');
+}
+
+async function removeMember(nickname) {
+  const target = String(nickname || '').trim();
+  if (!target) {
+    throw new Error('削除対象が不正です');
+  }
+  if (!state.hostNickname || state.nickname !== state.hostNickname) {
+    throw new Error('メンバー削除はホストのみ実行できます');
+  }
+
+  await api(`/api/rooms/${state.roomCode}/members`, {
+    method: 'DELETE',
+    body: JSON.stringify({ nickname: target })
+  });
+
+  await refreshRoom();
+}
+
+async function transferHost(nickname) {
+  const target = String(nickname || '').trim();
+  if (!target) {
+    throw new Error('譲渡先が不正です');
+  }
+  if (!state.hostNickname || state.nickname !== state.hostNickname) {
+    throw new Error('権限譲渡はホストのみ実行できます');
+  }
+  if (target === state.hostNickname) {
+    throw new Error('すでにホストです');
+  }
+
+  await api(`/api/rooms/${state.roomCode}/members`, {
+    method: 'PATCH',
+    body: JSON.stringify({ nickname: target })
+  });
+
+  await refreshRoom();
 }
 
 function updateEntryReactions(entryId, reactions) {
@@ -1044,6 +1099,41 @@ function bindEvents() {
     if (!entryId) return;
     state.commentDrafts[entryId] = event.target.value;
   });
+
+  if (el.memberList) {
+    el.memberList.addEventListener('click', (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const removeButton = target.closest('.member-remove-btn');
+      if (removeButton instanceof HTMLButtonElement) {
+        const memberName = String(removeButton.dataset.memberName || '').trim();
+        if (!memberName) return;
+
+        if (!window.confirm(`${memberName} さんをルームから削除しますか？`)) {
+          return;
+        }
+
+        removeMember(memberName)
+          .then(() => notice(`${memberName} さんを削除しました`))
+          .catch((err) => notice(err.message, 'err'));
+        return;
+      }
+
+      const transferButton = target.closest('.member-transfer-btn');
+      if (!(transferButton instanceof HTMLButtonElement)) return;
+
+      const memberName = String(transferButton.dataset.memberName || '').trim();
+      if (!memberName) return;
+
+      if (!window.confirm(`${memberName} さんにホスト権限を譲渡しますか？`)) {
+        return;
+      }
+
+      transferHost(memberName)
+        .then(() => notice(`ホスト権限を ${memberName} さんに譲渡しました`))
+        .catch((err) => notice(err.message, 'err'));
+    });
+  }
 
   if (dateField) {
     dateField.value = new Date().toISOString().slice(0, 10);

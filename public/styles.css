@@ -446,6 +446,12 @@ button:hover {
   font-size: 0.9rem;
 }
 
+.member-item-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 .member-item .badge {
   font-family: var(--font-en);
   font-size: 0.72rem;
@@ -454,6 +460,36 @@ button:hover {
   padding: 0.08rem 0.45rem;
   background: #f7e4da;
   color: #7b5f52;
+}
+
+.member-remove-btn {
+  width: auto;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid #ce9a93;
+  background: #fff1ef;
+  color: #9a4d44;
+  font-size: 0.72rem;
+  font-family: var(--font-jp);
+}
+
+.member-remove-btn:hover {
+  background: #ffe3df;
+}
+
+.member-transfer-btn {
+  width: auto;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid #8ea0ce;
+  background: #eef2ff;
+  color: #41507f;
+  font-size: 0.72rem;
+  font-family: var(--font-jp);
+}
+
+.member-transfer-btn:hover {
+  background: #dde6ff;
 }
 
 .calendar-wrap,
