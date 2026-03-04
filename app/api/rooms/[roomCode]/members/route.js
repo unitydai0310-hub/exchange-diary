@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { authFromRequest } from '../../../_lib/auth.js';
-import { isRoomMember, normalizeNickname, normalizeRoom, normalizeRoomCode } from '../../../_lib/rooms.js';
+import { normalizeNickname, normalizeRoom, normalizeRoomCode } from '../../../_lib/rooms.js';
 import { getRoom, saveRoom } from '../../../_lib/store.js';
 
 export const runtime = 'nodejs';
@@ -18,7 +18,7 @@ async function loadAuthorizedHostRoom(request, params) {
   }
 
   const room = normalizeRoom(rawRoom, roomCode);
-  if (!isRoomMember(room, session.nickname)) {
+  if (!Array.isArray(room.members) || !room.members.includes(normalizeNickname(session.nickname))) {
     return { error: NextResponse.json({ error: 'このルームのメンバーではありません' }, { status: 403 }) };
   }
   if (!room.hostNickname || session.nickname !== room.hostNickname) {
